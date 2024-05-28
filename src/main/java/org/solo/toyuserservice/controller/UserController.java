@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
+@RequestMapping("/user")
 public class UserController {
 
     private final UserService userService;
@@ -19,27 +20,27 @@ public class UserController {
         this.userService = userService;
     }
 
-    @GetMapping("/user/info")
+    @GetMapping("")
     public UserEntity getUserInfo(HttpServletRequest request, HttpServletResponse response) throws JsonProcessingException {
 
         return userService.getUserInfo(request, response);
     }
 
-    @PostMapping("/user/join")
+    @PostMapping("")
     public ResponseEntity<?> join(@RequestBody JoinDTO joinDTO) {
 
         System.out.println(joinDTO.getUsername());
         return userService.join(joinDTO);
     }
 
-    @PutMapping("/user/info")
+    @PutMapping("")
     public ResponseEntity<?> updateUserInfo(HttpServletRequest request, @RequestBody UserEntity userEntity) throws JsonProcessingException {
 
         System.out.println(userEntity.getUsername());
         return userService.updateUserInfo(request, userEntity);
     }
 
-    @DeleteMapping("/user")
+    @DeleteMapping("")
     public ResponseEntity<?> deleteUser(HttpServletRequest request) throws JsonProcessingException {
 
         return userService.deleteUser(request);
