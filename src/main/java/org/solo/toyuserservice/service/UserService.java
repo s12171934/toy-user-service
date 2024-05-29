@@ -12,17 +12,20 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
     private final PassportUtil passportUtil;
+    private final WebClient.Builder webClientBuilder;
 
-    public UserService(UserRepository userRepository, PassportUtil passportUtil) {
+    public UserService(UserRepository userRepository, PassportUtil passportUtil, WebClient.Builder webClientBuilder) {
 
         this.userRepository = userRepository;
         this.passportUtil = passportUtil;
+        this.webClientBuilder = webClientBuilder;
     }
 
     public BCryptPasswordEncoder bCryptPasswordEncoder() {
@@ -102,6 +105,9 @@ public class UserService {
 
         String username = passportUtil.getUsername(passportJson);
         userRepository.deleteByUsername(username);
+
+        webClientBuilder.baseUrl("http://BOARD-SERVICE").defaultHeader("passport", passportJson)
+                .build().delete().uri("/board/all/" + username).retrieve().bodyToMono(Void.class).block();
 
         return new ResponseEntity<>("User deleted", HttpStatus.OK);
     }
