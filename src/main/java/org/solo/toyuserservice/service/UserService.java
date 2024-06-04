@@ -6,6 +6,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import org.solo.toyuserservice.dto.JoinDTO;
 import org.solo.toyuserservice.entity.UserEntity;
+import org.solo.toyuserservice.kafka.KafkaProducerService;
 import org.solo.toyuserservice.repository.UserRepository;
 import org.solo.toyuserservice.util.PassportUtil;
 import org.springframework.http.HttpStatus;
@@ -20,12 +21,17 @@ public class UserService {
     private final UserRepository userRepository;
     private final PassportUtil passportUtil;
     private final WebClient.Builder webClientBuilder;
+    private final KafkaProducerService kafkaProducerService;
 
-    public UserService(UserRepository userRepository, PassportUtil passportUtil, WebClient.Builder webClientBuilder) {
+    public UserService(UserRepository userRepository,
+                       PassportUtil passportUtil,
+                       WebClient.Builder webClientBuilder,
+                       KafkaProducerService kafkaProducerService) {
 
         this.userRepository = userRepository;
         this.passportUtil = passportUtil;
         this.webClientBuilder = webClientBuilder;
+        this.kafkaProducerService = kafkaProducerService;
     }
 
     public BCryptPasswordEncoder bCryptPasswordEncoder() {
@@ -106,8 +112,16 @@ public class UserService {
         String username = passportUtil.getUsername(passportJson);
         userRepository.deleteByUsername(username);
 
+        //kafka를 이용한 이벤트 트리거로 변경
+        kafkaProducerService.sendMessage("user-delete",username);
+
+        /* 직접 webclient를 통해 데이터 삭제를 도모함
+
         webClientBuilder.baseUrl("http://BOARD-SERVICE").defaultHeader("passport", passportJson)
                 .build().delete().uri("/board/all/" + username).retrieve().bodyToMono(Void.class).block();
+         */
+
+
 
         return new ResponseEntity<>("User deleted", HttpStatus.OK);
     }
