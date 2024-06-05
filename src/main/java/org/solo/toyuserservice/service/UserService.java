@@ -13,28 +13,24 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 
 @Service
 public class UserService {
 
     private final UserRepository userRepository;
     private final PassportUtil passportUtil;
-    private final WebClient.Builder webClientBuilder;
     private final KafkaProducerService kafkaProducerService;
 
     public UserService(UserRepository userRepository,
                        PassportUtil passportUtil,
-                       WebClient.Builder webClientBuilder,
                        KafkaProducerService kafkaProducerService) {
 
         this.userRepository = userRepository;
         this.passportUtil = passportUtil;
-        this.webClientBuilder = webClientBuilder;
         this.kafkaProducerService = kafkaProducerService;
     }
 
-    public BCryptPasswordEncoder bCryptPasswordEncoder() {
+    public BCryptPasswordEncoder bCryptPasswordEncoder() { //회원가입시 비밀번호 암호화하여 DB에 저장시 필요
 
         return new BCryptPasswordEncoder();
     }
@@ -43,16 +39,19 @@ public class UserService {
 
         UserEntity userEntity = new UserEntity();
 
+        //비밀번호 확인 검증
         boolean checkPassword = joinDTO.getPassword().equals(joinDTO.getPasswordCheck());
         if(!checkPassword) {
             return new ResponseEntity<>("Passwords do not match", HttpStatus.UNAUTHORIZED);
         }
 
+        //이미 존재하는 username인지 중복 검증
         boolean isUser = userRepository.existsByUsername(joinDTO.getUsername());
         if(isUser) {
             return new ResponseEntity<>("User already exists", HttpStatus.CONFLICT);
         }
 
+        //검증 완료 후 DB에 user 저장
         userEntity.setUsername(joinDTO.getUsername());
         userEntity.setPassword(bCryptPasswordEncoder().encode(joinDTO.getPassword()));
         userEntity.setEmail(joinDTO.getEmail());
@@ -66,6 +65,7 @@ public class UserService {
 
     public UserEntity getUserInfo(HttpServletRequest request, HttpServletResponse response) throws JsonProcessingException {
 
+        //로그인 상태일시 본인 정보 조회를 위해 passport 검증
         String passportJson = request.getHeader("passport");
         if(passportJson == null) {
 
@@ -88,6 +88,7 @@ public class UserService {
     @Transactional
     public ResponseEntity<?> updateUserInfo(HttpServletRequest request, UserEntity userEntity) throws JsonProcessingException {
 
+        //로그인 상태일시 본인 정보 조회를 위해 passport 검증
         String passportJson = request.getHeader("passport");
         if(passportJson == null) {
 
@@ -103,6 +104,7 @@ public class UserService {
     @Transactional
     public ResponseEntity<?> deleteUser(HttpServletRequest request) throws JsonProcessingException {
 
+        //로그인 상태일시 본인 정보 조회를 위해 passport 검증
         String passportJson = request.getHeader("passport");
         if(passportJson == null) {
 
@@ -112,16 +114,8 @@ public class UserService {
         String username = passportUtil.getUsername(passportJson);
         userRepository.deleteByUsername(username);
 
-        //kafka를 이용한 이벤트 트리거로 변경
+        //kafka topic - user-delete에 삭제된 username 전송
         kafkaProducerService.sendMessage("user-delete",username);
-
-        /* 직접 webclient를 통해 데이터 삭제를 도모함
-
-        webClientBuilder.baseUrl("http://BOARD-SERVICE").defaultHeader("passport", passportJson)
-                .build().delete().uri("/board/all/" + username).retrieve().bodyToMono(Void.class).block();
-         */
-
-
 
         return new ResponseEntity<>("User deleted", HttpStatus.OK);
     }

@@ -19,6 +19,7 @@ public class PassportUtil {
 
     public void convertPassport(String passportJson) throws JsonProcessingException {
 
+        //JsonString을 map형식으로 전환
         ObjectMapper mapper = new ObjectMapper();
         passport = mapper.readValue(passportJson, Map.class);
     }
